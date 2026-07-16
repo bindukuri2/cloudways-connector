@@ -1,0 +1,38 @@
+---
+description: Guardrails for working inside WordPress / WooCommerce projects that will be deployed via the cloudways-deploy plugin.
+alwaysApply: false
+globs:
+  - "**/wp-config.php"
+  - "**/wp-config-sample.php"
+  - "**/wp-content/**"
+  - "**/composer.json"
+  - "**/.env"
+  - "**/.env.example"
+---
+
+# WordPress / Cloudways deploy guardrails
+
+When the user is working in a WordPress or WooCommerce project that they plan to ship via the `cloudways-deploy` plugin, keep these constraints in mind.
+
+## Secrets and credentials
+
+- Never write real DB credentials (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`) into `wp-config.php`. Cloudways injects fresh credentials at app-create time and overwrites them on the server.
+- Never commit `.env` files. Use `.env.example` with empty values for keys the user will set on Cloudways.
+- Auth keys / salts (`AUTH_KEY`, `SECURE_AUTH_KEY`, etc.) should be left as placeholder strings; Cloudways generates fresh ones per app.
+
+## Deployment-friendly conventions
+
+- Reference URLs via `WP_HOME` and `WP_SITEURL` constants, never hardcoded to localhost.
+- Use relative paths in theme/plugin code. Avoid absolute paths like `/var/www/...`.
+- Database prefix (`$table_prefix`) should be configurable, not hardcoded to `wp_`.
+- For Bedrock projects, keep custom config in `config/environments/production.php` rather than in committed `.env` files.
+
+## What the `cloudways-deploy` plugin will do
+
+When the user asks to deploy:
+
+1. The `cloudways-deploy` skill is triggered.
+2. The MCP server detects the stack, reads `wp-config.php` constants (read-only), reads `git remote`, and POSTs a `DeployRequest` to the local backend.
+3. The backend creates a Cloudways app on the pinned `CLOUDWAYS_SERVER_ID`, optionally `git clone`s the repo on the Cloudways box, and returns the live URL.
+
+This means: keep your code in a Git remote that Cloudways can read (public repo for the POC), and keep `wp-config.php` parameter-style (env constants, not hardcoded values).

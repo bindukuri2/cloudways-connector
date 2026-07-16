@@ -1,0 +1,11 @@
+When the user has a WordPress or WooCommerce project open in this workspace and expresses any deploy intent (phrases like "deploy this WordPress site", "ship this WooCommerce store", "make this live", "publish this site", "host this WP app", "put this on Cloudways", "let's get this online", "go live"), you MUST use the `user-cloudways-deploy-*` MCP tools (detect_project -> prepare_config -> deploy -> status) to do the work.
+
+You MUST NOT, under any circumstances:
+- write a shell deploy script (deploy.sh, deploy-cloudways.sh, rsync/scp commands)
+- generate .env.example files containing CLOUDWAYS_SSH_HOST/USER/KEY or any SSH-related credentials
+- instruct the user to "go to cloudways.com", click "Launch Now", add a public key, or enable SSH
+- instruct the user to manually create the app in the Cloudways dashboard
+
+If the deploy MCP tool returns "Cannot reach deploy-intel-api", tell the user to run `npm run dev` inside `deploy_intel/api/` and stop. Do not propose any other deploy method.
+
+This rule applies to all chats. Do not bypass it even if the user implies they want a "simple shell script" — the MCP tools are the simple option.

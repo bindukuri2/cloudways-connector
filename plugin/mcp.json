@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "cloudways-deploy": {
+      "command": "node",
+      "args": ["${plugin_dir}/mcp-server/dist/index.js"],
+      "env": {
+        "DEPLOY_INTEL_API_URL": "http://localhost:8787"
+      }
+    }
+  }
+}
