@@ -15,6 +15,7 @@ import { createInMemoryStore } from "./store.js";
 import { createCloudwaysClient } from "./cloudways/client.js";
 import { registerDeploymentRoutes } from "./routes/deployments.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerServerRoutes } from "./routes/servers.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -33,11 +34,16 @@ async function main(): Promise<void> {
   });
 
   await registerHealthRoutes(app);
+  await registerServerRoutes(app, { cloudways });
   await registerDeploymentRoutes(app, { cloudways, store, config });
 
   await app.listen({ port: config.port, host: config.host });
   app.log.info(
-    { port: config.port, host: config.host, serverId: config.cloudways.serverId },
+    {
+      port: config.port,
+      host: config.host,
+      serverId: config.cloudways.serverId ?? "(unset — resolved per deploy)",
+    },
     "deploy-intel-api up",
   );
 }

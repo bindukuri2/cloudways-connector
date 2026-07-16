@@ -10,7 +10,12 @@ export interface AppConfig {
   cloudways: {
     email: string;
     apiKey: string;
-    serverId: string;
+    /**
+     * Optional fallback server id. Only used when the DeployRequest didn't
+     * carry one — normal operation is that the plugin resolves the server via
+     * the picker/create flow and passes it in.
+     */
+    serverId?: string;
     apiBaseUrl: string;
     appUrlPattern: string;
   };
@@ -26,6 +31,12 @@ function required(name: string): string {
   return v.trim();
 }
 
+function optional(name: string): string | undefined {
+  const v = process.env[name];
+  if (!v || v.trim().length === 0) return undefined;
+  return v.trim();
+}
+
 export function loadConfig(): AppConfig {
   return {
     port: Number(process.env.PORT ?? 8787),
@@ -33,7 +44,7 @@ export function loadConfig(): AppConfig {
     cloudways: {
       email: required("CLOUDWAYS_EMAIL"),
       apiKey: required("CLOUDWAYS_API_KEY"),
-      serverId: required("CLOUDWAYS_SERVER_ID"),
+      serverId: optional("CLOUDWAYS_SERVER_ID"),
       apiBaseUrl: (process.env.CLOUDWAYS_API_BASE_URL ?? "https://api.cloudways.com/api/v1").replace(
         /\/$/,
         "",

@@ -6,9 +6,18 @@
  */
 
 import type {
+  AppType,
+  AppVersion,
+  CreateServerArgs,
+  CreateServerResponse,
   DeployCreatedResponse,
   DeployRequest,
   DeployStatus,
+  InstanceSize,
+  Provider,
+  Region,
+  ServerOperationStatus,
+  ServerSummary,
 } from "./types.js";
 
 const DEFAULT_API_URL = "http://localhost:8787";
@@ -81,6 +90,36 @@ export const apiClient = {
   },
   healthz(): Promise<{ ok: boolean }> {
     return request<{ ok: boolean }>("/healthz");
+  },
+  listServers(): Promise<{ servers: ServerSummary[] }> {
+    return request<{ servers: ServerSummary[] }>("/servers");
+  },
+  listProviders(): Promise<{ providers: Provider[] }> {
+    return request<{ providers: Provider[] }>("/providers");
+  },
+  listRegions(cloud: string): Promise<{ regions: Region[] }> {
+    return request<{ regions: Region[] }>(`/regions?cloud=${encodeURIComponent(cloud)}`);
+  },
+  listInstanceSizes(cloud: string): Promise<{ sizes: InstanceSize[] }> {
+    return request<{ sizes: InstanceSize[] }>(
+      `/server_sizes?cloud=${encodeURIComponent(cloud)}`,
+    );
+  },
+  listAppVersions(application: AppType): Promise<{ versions: AppVersion[] }> {
+    return request<{ versions: AppVersion[] }>(
+      `/app_versions?application=${encodeURIComponent(application)}`,
+    );
+  },
+  createServer(args: CreateServerArgs): Promise<CreateServerResponse> {
+    return request<CreateServerResponse>("/servers", {
+      method: "POST",
+      body: JSON.stringify(args),
+    });
+  },
+  getServerOperation(operationId: string): Promise<ServerOperationStatus> {
+    return request<ServerOperationStatus>(
+      `/servers/operations/${encodeURIComponent(operationId)}`,
+    );
   },
 };
 

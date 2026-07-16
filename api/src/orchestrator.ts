@@ -47,6 +47,17 @@ export async function runDeployment(
 ): Promise<void> {
   const { store, cloudways, config, log } = deps;
 
+  const serverId = req.serverId ?? config.cloudways.serverId;
+  if (!serverId) {
+    store.update(deploymentId, {
+      state: "failed",
+      message:
+        "No Cloudways serverId available. Pass serverId in the DeployRequest or set CLOUDWAYS_SERVER_ID.",
+      error: "missing serverId",
+    });
+    return;
+  }
+
   const transition = (
     patch: Partial<Parameters<DeploymentStore["update"]>[1]>,
   ): void => {
@@ -103,7 +114,7 @@ export async function runDeployment(
       // this, every deploy ends up creating a new Cloudways app.
       const discovered = await findAppIdByLabel(
         cloudways,
-        config.cloudways.serverId,
+        serverId,
         req.appName,
       );
       if (discovered) {
@@ -112,7 +123,7 @@ export async function runDeployment(
         transition({
           state: "creating_app",
           message: `Found existing Cloudways app "${req.appName}" (id=${discovered}); reusing it.`,
-          cloudwaysServerId: config.cloudways.serverId,
+          cloudwaysServerId: serverId,
           cloudwaysAppId: discovered,
         });
       }
@@ -122,19 +133,19 @@ export async function runDeployment(
       isExistingApp = true;
       transition({
         state: "creating_app",
-        message: `Using existing Cloudways app (id=${appId}) on server ${config.cloudways.serverId}...`,
-        cloudwaysServerId: config.cloudways.serverId,
+        message: `Using existing Cloudways app (id=${appId}) on server ${serverId}...`,
+        cloudwaysServerId: serverId,
         cloudwaysAppId: appId,
       });
     } else if (!appId) {
       transition({
         state: "creating_app",
-        message: `Creating ${req.appType} app on server ${config.cloudways.serverId}...`,
-        cloudwaysServerId: config.cloudways.serverId,
+        message: `Creating ${req.appType} app on server ${serverId}...`,
+        cloudwaysServerId: serverId,
       });
 
       const created = await createApp(cloudways, {
-        serverId: config.cloudways.serverId,
+        serverId: serverId,
         appLabel: req.appName,
         application: req.appType,
         appVersion: "latest",
@@ -160,10 +171,10 @@ export async function runDeployment(
 
       appId = created.app_id;
       if (!appId) {
-        appId = await findAppIdByLabel(cloudways, config.cloudways.serverId, req.appName);
+        appId = await findAppIdByLabel(cloudways, serverId, req.appName);
         if (!appId) {
           throw new Error(
-            `Cloudways finished operation but app "${req.appName}" was not found on server ${config.cloudways.serverId}`,
+            `Cloudways finished operation but app "${req.appName}" was not found on server ${serverId}`,
           );
         }
       }
@@ -191,7 +202,7 @@ export async function runDeployment(
         let pullSucceeded = false;
         try {
           const pullOp = await startGitPull(cloudways, {
-            serverId: config.cloudways.serverId,
+            serverId: serverId,
             appId,
             branch: req.git.branch,
             deployPath,
@@ -219,7 +230,7 @@ export async function runDeployment(
 
         if (!pullSucceeded) {
           const cloneOp = await startGitClone(cloudways, {
-            serverId: config.cloudways.serverId,
+            serverId: serverId,
             appId,
             gitUrl: req.git.gitUrl,
             branch: req.git.branch,
@@ -246,7 +257,7 @@ export async function runDeployment(
           message: `Attaching Git source ${req.git.gitUrl}@${req.git.branch}...`,
         });
         const cloneOp = await startGitClone(cloudways, {
-          serverId: config.cloudways.serverId,
+          serverId: serverId,
           appId,
           gitUrl: req.git.gitUrl,
           branch: req.git.branch,
@@ -273,7 +284,7 @@ export async function runDeployment(
       message: "Purging Cloudways app cache and Varnish so the latest deploy is visible...",
     });
     const cache = await purgeDeploymentCaches(cloudways, {
-      serverId: config.cloudways.serverId,
+      serverId: serverId,
       appId,
     });
     const cacheFailures = [
@@ -290,7 +301,7 @@ export async function runDeployment(
 
     const url = await getAppPublicUrl(
       cloudways,
-      config.cloudways.serverId,
+      serverId,
       appId,
       config.cloudways.appUrlPattern,
     );

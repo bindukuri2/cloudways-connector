@@ -72,6 +72,91 @@ export interface DeployRequest {
   envVars: DeployEnvVar[];
   /** Skip app creation and attach Git to an existing Cloudways app. */
   existingAppId?: string;
+  /**
+   * Cloudways server to deploy into. When omitted, the backend falls back to
+   * CLOUDWAYS_SERVER_ID from its env (if set). The skill is expected to
+   * always provide this after the picker/create flow has run.
+   */
+  serverId?: string;
+}
+
+/**
+ * Cloudways discovery shapes used by the picker and create-server flow.
+ * Kept small and normalized so the LLM only sees fields it can act on.
+ */
+export interface Provider {
+  code: string;
+  name: string;
+}
+
+export interface Region {
+  code: string;
+  name: string;
+  cloud: string;
+}
+
+export interface InstanceSize {
+  code: string;
+  ram?: string;
+  cpu?: string;
+  disk?: string;
+  priceMonthly?: string;
+  cloud: string;
+}
+
+export interface AppVersion {
+  application: string;
+  version: string;
+  isDefault?: boolean;
+}
+
+export interface ServerAppSummary {
+  id: string;
+  label: string;
+  application?: string;
+}
+
+export interface ServerSummary {
+  id: string;
+  label: string;
+  cloud: string;
+  region: string;
+  size: string;
+  status: string;
+  publicIp?: string;
+  appsCount: number;
+  apps: ServerAppSummary[];
+}
+
+export interface CreateServerArgs {
+  cloud: string;
+  region: string;
+  instanceType: string;
+  application: AppType;
+  appVersion?: string;
+  serverLabel: string;
+  appLabel: string;
+  projectName?: string;
+}
+
+export interface CreateServerResponse {
+  /** Cloudways operation id polled via /servers/operations/:id. Empty when the server was reused via label idempotency. */
+  operationId: string;
+  /** Server label sent to Cloudways; use the same value on retry to hit the idempotency path. */
+  plannedLabel: string;
+  /** Populated immediately when Cloudways returns a server id up-front OR when we reused an existing server by label. */
+  serverId?: string;
+  /** True when the response reused an existing server rather than starting a new POST /server. */
+  reused?: boolean;
+}
+
+export interface ServerOperationStatus {
+  operationId: string;
+  isCompleted: boolean;
+  status: string;
+  message?: string;
+  /** Populated once the operation completes successfully and we can resolve the label to an id. */
+  serverId?: string;
 }
 
 export type DeploymentState =

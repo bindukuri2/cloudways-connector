@@ -16,11 +16,18 @@ This repo contains two artifacts that both run locally:
 Cursor chat -> "deploy this WordPress site"
             -> skill cloudways-deploy triggers
             -> MCP tool detect_project    (scans workspace)
-            -> MCP tool prepare_config    (builds DeployRequest)
+            -> MCP tool list_servers      (see Step 1.5 in SKILL.md)
+                 -> 0 servers -> list_providers -> list_regions
+                              -> list_instance_sizes -> confirm
+                              -> create_server (blocking, ~6 min)
+                 -> 1 server  -> auto-pick with confirmation
+                 -> N servers -> numbered picker
+            -> MCP tool save_server_selection  (writes .deploy-intel/config.json)
+            -> MCP tool prepare_config    (builds DeployRequest, injects serverId)
             -> MCP tool deploy            (POST localhost:8787/deployments)
                                     -> api: orchestrator
                                           -> Cloudways /oauth/access_token
-                                          -> Cloudways /app   (create on pinned server_id)
+                                          -> Cloudways /app   (create on the picked server_id)
                                           -> Cloudways /git/clone (if Git ready)
                                           -> resolve canonical app URL
             -> MCP tool status            (poll until live or failed)
@@ -30,9 +37,8 @@ Cursor chat -> "deploy this WordPress site"
 ## Prereqs
 
 - Node.js 20+ (uses native `fetch`).
-- A Cloudways account with an existing server you can deploy apps to.
-- The server ID (visible in the Cloudways dashboard URL).
-- An API key from <https://platform.cloudways.com/api>.
+- A Cloudways account and an API key from <https://platform.cloudways.com/api>.
+- That's it — servers are resolved at deploy time. The plugin lists your existing servers or walks you through creating one; the chosen server is cached per workspace in `.deploy-intel/config.json` so the second deploy is one-shot.
 
 ## Local dev — first run
 
@@ -59,7 +65,9 @@ ln -s "$(pwd)/../" "$HOME/.cursor/plugins/local/cloudways-deploy"
 ```bash
 cd ../../api
 cp .env.example .env
-# edit .env — set CLOUDWAYS_EMAIL, CLOUDWAYS_API_KEY, CLOUDWAYS_SERVER_ID
+# edit .env — set CLOUDWAYS_EMAIL and CLOUDWAYS_API_KEY
+# CLOUDWAYS_SERVER_ID is optional and only used as a fallback when the plugin
+# didn't pass a serverId. Leave it commented out for normal use.
 npm install
 npm run dev
 ```
@@ -100,14 +108,20 @@ deploy_intel/
 │   ├── skills/cloudways-deploy/SKILL.md
 │   ├── rules/wordpress-deploy.mdc
 │   ├── mcp.json                 # spawns the MCP server, sets DEPLOY_INTEL_API_URL
-│   └── mcp-server/              # Node + TS MCP server (4 tools)
+│   └── mcp-server/              # Node + TS MCP server (12 tools)
+│       └── src/tools/
+│           ├── detect_project.ts, scaffold_wp_theme.ts, prepare_config.ts,
+│           ├── deploy.ts, status.ts,
+│           ├── list_servers.ts, list_providers.ts, list_regions.ts,
+│           ├── list_instance_sizes.ts, list_app_versions.ts,
+│           └── create_server.ts, save_server_selection.ts
 ├── api/                         # Fastify backend
 │   ├── src/
 │   │   ├── server.ts
-│   │   ├── routes/{deployments,health}.ts
+│   │   ├── routes/{deployments,health,servers}.ts
 │   │   ├── orchestrator.ts      # state machine
 │   │   ├── store.ts             # in-memory deployment store (POC)
-│   │   ├── cloudways/{client,auth,apps,git}.ts
+│   │   ├── cloudways/{client,auth,apps,git,cache,servers}.ts
 │   │   └── types.ts             # local copy of the shared contract
 │   └── .env.example
 └── shared/types.ts              # canonical reference for the wire contract
@@ -116,7 +130,8 @@ deploy_intel/
 ## Out of scope (POC)
 
 - Deploying the backend anywhere (Render, Fly, etc.) — backend is local-only.
-- Cloudways server provisioning. The backend uses `CLOUDWAYS_SERVER_ID` from `.env`.
+- Preflight account check (billing / trial status). If `POST /server` is rejected, the error is surfaced verbatim.
+- Resuming an in-flight `POST /server` operation across backend restarts.
 - User auth, multi-tenant credential storage, billing.
-- Persistent state — in-memory only; restart wipes deployments.
+- Persistent deployment state — in-memory only; restart wipes deployments. (Workspace-level server selection IS persisted, in `.deploy-intel/config.json`.)
 - Database export/import (fresh WP install only).

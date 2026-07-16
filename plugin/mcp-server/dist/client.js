@@ -67,6 +67,30 @@ export const apiClient = {
     healthz() {
         return request("/healthz");
     },
+    listServers() {
+        return request("/servers");
+    },
+    listProviders() {
+        return request("/providers");
+    },
+    listRegions(cloud) {
+        return request(`/regions?cloud=${encodeURIComponent(cloud)}`);
+    },
+    listInstanceSizes(cloud) {
+        return request(`/server_sizes?cloud=${encodeURIComponent(cloud)}`);
+    },
+    listAppVersions(application) {
+        return request(`/app_versions?application=${encodeURIComponent(application)}`);
+    },
+    createServer(args) {
+        return request("/servers", {
+            method: "POST",
+            body: JSON.stringify(args),
+        });
+    },
+    getServerOperation(operationId) {
+        return request(`/servers/operations/${encodeURIComponent(operationId)}`);
+    },
 };
 export function getApiBaseUrl() {
     return apiBase();

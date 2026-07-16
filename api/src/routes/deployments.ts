@@ -47,14 +47,18 @@ const deployRequestSchema = z
   .object({
     appName: z
       .string()
-      .min(1)
+      .min(3)
       .max(60)
-      .regex(/^[a-z0-9-]+$/, "appName must be lowercase alphanumeric/dash"),
+      .regex(
+        /^[a-z0-9]+(-[a-z0-9]+)*$/,
+        "appName must be 3-60 chars, lowercase alphanumeric with single dashes as separators (e.g. 'my-wp-site')",
+      ),
     appType: z.enum(["wordpress", "woocommerce"]),
     stack: projectStackSchema,
     git: gitSourceSchema,
     envVars: z.array(envVarSchema).default([]),
     existingAppId: z.string().min(1).optional(),
+    serverId: z.string().min(1).optional(),
   })
   .strict();
 
@@ -78,12 +82,23 @@ export async function registerDeploymentRoutes(
       };
     }
     const body: DeployRequest = parsed.data;
+
+    const resolvedServerId = body.serverId ?? deps.config.cloudways.serverId;
+    if (!resolvedServerId) {
+      reply.code(422);
+      return {
+        error:
+          "No Cloudways serverId available. Pass `serverId` in the DeployRequest (recommended, from the plugin's picker/create flow) or set CLOUDWAYS_SERVER_ID in the backend .env as a fallback.",
+      };
+    }
+
     const deploymentId = randomUUID();
 
     const initial = deps.store.create({
       deploymentId,
       state: "pending",
       message: "Queued",
+      cloudwaysServerId: resolvedServerId,
     });
 
     setImmediate(() => {

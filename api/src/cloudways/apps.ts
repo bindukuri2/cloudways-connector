@@ -148,19 +148,29 @@ export async function waitForOperation(
 }
 
 /**
- * Fetch the canonical app URL after creation. Cloudways exposes app metadata
- * via GET /server (with all applications). We scan for our app_id and pull
- * `cname` / `app_fqdn`.
+ * Cloudways exposes server + app metadata via GET /server (list). The
+ * per-server path (/server/{id}) is not a valid JSON endpoint on this API.
  */
+async function getServerApps(
+  client: CloudwaysClient,
+  serverId: string,
+): Promise<CloudwaysApplicationRecord[]> {
+  const body = await client.request<Record<string, unknown>>("/server");
+  const servers = Array.isArray(body.servers)
+    ? (body.servers as Array<Record<string, unknown>>)
+    : [];
+  const server = servers.find((s) => String(s.id ?? "") === String(serverId));
+  if (!server) return [];
+  return Array.isArray(server.apps) ? (server.apps as CloudwaysApplicationRecord[]) : [];
+}
+
 /** Resolve a newly created app id by label after async provisioning completes. */
 export async function findAppIdByLabel(
   client: CloudwaysClient,
   serverId: string,
   appLabel: string,
 ): Promise<string | undefined> {
-  const body = await client.request<Record<string, unknown>>(`/server/${encodeURIComponent(serverId)}`);
-  const server = (body.server ?? body) as Record<string, unknown>;
-  const apps = Array.isArray(server.apps) ? (server.apps as CloudwaysApplicationRecord[]) : [];
+  const apps = await getServerApps(client, serverId);
   const normalized = appLabel.trim().toLowerCase();
   const match = apps.find((a) => String(a.label ?? "").trim().toLowerCase() === normalized);
   if (!match) return undefined;
@@ -174,9 +184,7 @@ export async function getAppPublicUrl(
   appId: string,
   fallbackPattern: string,
 ): Promise<string> {
-  const body = await client.request<Record<string, unknown>>(`/server/${encodeURIComponent(serverId)}`);
-  const server = (body.server ?? body) as Record<string, unknown>;
-  const apps = Array.isArray(server.apps) ? (server.apps as CloudwaysApplicationRecord[]) : [];
+  const apps = await getServerApps(client, serverId);
   const match = apps.find((a) => String(a.id ?? a.app_id ?? "") === String(appId));
   if (match) {
     if (match.cname && typeof match.cname === "string") return ensureHttps(match.cname);

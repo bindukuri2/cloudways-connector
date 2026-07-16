@@ -29,13 +29,28 @@ export async function buildDeployRequest(stack, opts = {}) {
         envVars,
     };
 }
+/**
+ * Slugify into a Cloudways-safe label:
+ *   - lowercase
+ *   - only [a-z0-9-]
+ *   - no leading/trailing dash
+ *   - max 60 chars
+ *   - at least 3 chars (Cloudways rejects shorter labels with HTTP 422). Short
+ *     names get an "-app" suffix rather than being asked-about, so workspaces
+ *     called "wp" or "x" still produce a valid label with a stable derivation.
+ */
 function slugify(input) {
-    return (input
+    const base = input
         .toLowerCase()
         .normalize("NFKD")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
-        .slice(0, 60) || "wp-app");
+        .slice(0, 60);
+    if (!base)
+        return "wp-app";
+    if (base.length < 3)
+        return `${base}-app`.slice(0, 60);
+    return base;
 }
 const WP_CONFIG_KEYS = ["WP_HOME", "WP_SITEURL", "WP_DEBUG", "WP_DEBUG_LOG", "WP_MEMORY_LIMIT"];
 const WP_SECRET_KEYS = new Set([

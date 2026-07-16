@@ -35,7 +35,12 @@ const envVarShape = z
 })
     .strict();
 const inputShape = {
-    appName: z.string().min(1).describe("Cloudways app label."),
+    appName: z
+        .string()
+        .min(3)
+        .max(60)
+        .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "appName must be 3-60 chars, lowercase alphanumeric with single dashes as separators (e.g. 'my-wp-site'). Cloudways rejects shorter labels with HTTP 422.")
+        .describe("Cloudways app label. Must be 3-60 chars, lowercase alphanumeric with single dashes (e.g. 'my-wp-site'). Normally derived by prepare_config from the workspace folder name."),
     appType: z
         .enum(["wordpress", "woocommerce"])
         .describe("Cloudways application type."),
@@ -43,6 +48,11 @@ const inputShape = {
     git: gitSourceShape,
     envVars: z.array(envVarShape).default([]),
     existingAppId: z.string().min(1).optional(),
+    serverId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Cloudways server id to deploy into. Normally forwarded from prepare_config (which reads .deploy-intel/config.json). Required unless the backend has a CLOUDWAYS_SERVER_ID fallback in its .env."),
 };
 export function registerDeploy(server) {
     server.registerTool("deploy", {

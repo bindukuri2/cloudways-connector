@@ -62,6 +62,78 @@ export interface DeployRequest {
   envVars: DeployEnvVar[];
   /** Skip app creation and attach Git to an existing Cloudways app. */
   existingAppId?: string;
+  /** Cloudways server to deploy into. Falls back to CLOUDWAYS_SERVER_ID env when omitted. */
+  serverId?: string;
+}
+
+export interface Provider {
+  code: string;
+  name: string;
+}
+
+export interface Region {
+  code: string;
+  name: string;
+  cloud: string;
+}
+
+export interface InstanceSize {
+  code: string;
+  ram?: string;
+  cpu?: string;
+  disk?: string;
+  priceMonthly?: string;
+  cloud: string;
+}
+
+export interface AppVersion {
+  application: string;
+  version: string;
+  isDefault?: boolean;
+}
+
+export interface ServerAppSummary {
+  id: string;
+  label: string;
+  application?: string;
+}
+
+export interface ServerSummary {
+  id: string;
+  label: string;
+  cloud: string;
+  region: string;
+  size: string;
+  status: string;
+  publicIp?: string;
+  appsCount: number;
+  apps: ServerAppSummary[];
+}
+
+export interface CreateServerArgs {
+  cloud: string;
+  region: string;
+  instanceType: string;
+  application: AppType;
+  appVersion?: string;
+  serverLabel: string;
+  appLabel: string;
+  projectName?: string;
+}
+
+export interface CreateServerResponse {
+  operationId: string;
+  plannedLabel: string;
+  serverId?: string;
+  reused?: boolean;
+}
+
+export interface ServerOperationStatus {
+  operationId: string;
+  isCompleted: boolean;
+  status: string;
+  message?: string;
+  serverId?: string;
 }
 
 export type DeploymentState =
