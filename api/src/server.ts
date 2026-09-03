@@ -29,6 +29,7 @@ async function main(): Promise<void> {
   const store = createInMemoryStore();
   const cloudways = createCloudwaysClient({
     apiBaseUrl: config.cloudways.apiBaseUrl,
+    accessToken: config.cloudways.accessToken,
     email: config.cloudways.email,
     apiKey: config.cloudways.apiKey,
   });
@@ -38,11 +39,15 @@ async function main(): Promise<void> {
   await registerDeploymentRoutes(app, { cloudways, store, config });
 
   await app.listen({ port: config.port, host: config.host });
+  const authMode = config.cloudways.accessToken
+    ? "access-token"
+    : "legacy-api-key";
   app.log.info(
     {
       port: config.port,
       host: config.host,
       serverId: config.cloudways.serverId ?? "(unset — resolved per deploy)",
+      authMode,
     },
     "deploy-intel-api up",
   );

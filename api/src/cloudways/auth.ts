@@ -1,8 +1,17 @@
 /**
- * Cloudways OAuth bearer token cache.
+ * Cloudways bearer token resolution.
  *
- * Cloudways docs: POST /oauth/access_token with { email, api_key } returns
- * { access_token, expires_in }. We cache in-memory and refresh slightly early.
+ * Two auth models supported:
+ *
+ *   1. NEW — Access Token (preferred):
+ *      A long-lived scoped token generated in the Cloudways dashboard
+ *      (Account -> API -> Access Tokens). Passed in as CLOUDWAYS_ACCESS_TOKEN.
+ *      Used directly as the Bearer token, no exchange needed.
+ *
+ *   2. LEGACY — email + API key:
+ *      POST /oauth/access_token with { email, api_key } returns
+ *      { access_token, expires_in }. Cached in-memory and refreshed early.
+ *      Deprecated by Cloudways; stops working after Oct 15, 2026.
  */
 
 import type { CloudwaysHttpConfig } from "./client.js";
@@ -23,6 +32,19 @@ export function resetTokenCache(): void {
 }
 
 export async function getAccessToken(cfg: CloudwaysHttpConfig): Promise<string> {
+  // NEW auth path: pre-generated Access Token — no exchange needed.
+  if (cfg.accessToken) {
+    return cfg.accessToken;
+  }
+
+  // Legacy path: email + api_key -> /oauth/access_token.
+  if (!cfg.email || !cfg.apiKey) {
+    throw new Error(
+      "No Cloudways credentials configured. Set CLOUDWAYS_ACCESS_TOKEN (recommended) " +
+        "or the legacy CLOUDWAYS_EMAIL + CLOUDWAYS_API_KEY pair.",
+    );
+  }
+
   const now = Date.now();
   if (cached && cached.expiresAtMs - REFRESH_LEEWAY_MS > now) {
     return cached.token;
@@ -30,7 +52,7 @@ export async function getAccessToken(cfg: CloudwaysHttpConfig): Promise<string> 
   if (inFlight) {
     return inFlight;
   }
-  inFlight = fetchToken(cfg)
+  inFlight = fetchLegacyToken(cfg)
     .then((rec) => {
       cached = rec;
       return rec.token;
@@ -46,11 +68,11 @@ interface OAuthResponse {
   expires_in: number; // seconds
 }
 
-async function fetchToken(cfg: CloudwaysHttpConfig): Promise<TokenRecord> {
+async function fetchLegacyToken(cfg: CloudwaysHttpConfig): Promise<TokenRecord> {
   const url = `${cfg.apiBaseUrl}/oauth/access_token`;
   const body = new URLSearchParams({
-    email: cfg.email,
-    api_key: cfg.apiKey,
+    email: cfg.email!,
+    api_key: cfg.apiKey!,
   });
   const res = await fetch(url, {
     method: "POST",

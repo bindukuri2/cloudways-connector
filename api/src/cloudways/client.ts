@@ -10,8 +10,16 @@ import { getAccessToken, resetTokenCache } from "./auth.js";
 
 export interface CloudwaysHttpConfig {
   apiBaseUrl: string;
-  email: string;
-  apiKey: string;
+  /**
+   * Pre-generated Access Token from the Cloudways dashboard. When set, it is
+   * used directly as the Bearer token — see cloudways/auth.ts. Preferred over
+   * the legacy email + apiKey pair.
+   */
+  accessToken?: string;
+  /** Legacy account email (only used when accessToken is not set). */
+  email?: string;
+  /** Legacy API key (only used when accessToken is not set). */
+  apiKey?: string;
 }
 
 export class CloudwaysApiError extends Error {
@@ -80,10 +88,32 @@ async function request<T>(
 
     if (res.ok) return parsed as T;
 
-    // 401 -> refresh the token once and retry the same attempt
-    if (res.status === 401 && attempt === 1) {
-      resetTokenCache();
-      continue;
+    // 401 handling depends on the auth model in use.
+    // - Static Access Token: there is nothing to refresh. The token is either
+    //   revoked, expired, or missing the required scope. Fail fast with a
+    //   pointed message so the user knows exactly what to fix.
+    // - Legacy email + api_key: an in-flight token may have expired between
+    //   cache lookup and the request; drop the cache and retry once.
+    if (res.status === 401) {
+      if (cfg.accessToken) {
+        const bodyMsg = extractErrorMessage(parsed);
+        throw new CloudwaysApiError(
+          401,
+          bodyMsg
+            ? `Cloudways Access Token rejected (${bodyMsg}). ` +
+                "Regenerate it at https://platform.cloudways.com/api under Access Tokens " +
+                "and grant either FULL ACCESS or the groups the connector needs " +
+                "(Server, Application, Git, Services, Operation)."
+            : "Cloudways Access Token rejected. It may be revoked, expired, or missing " +
+                "the required scope. Regenerate it at https://platform.cloudways.com/api " +
+                "under Access Tokens.",
+          parsed,
+        );
+      }
+      if (attempt === 1) {
+        resetTokenCache();
+        continue;
+      }
     }
 
     if (RETRYABLE.has(res.status) && attempt < MAX_ATTEMPTS) {

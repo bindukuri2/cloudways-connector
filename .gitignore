@@ -1,0 +1,49 @@
+# Environment variables (sensitive credentials)
+.env
+.env.local
+.env.*.local
+api/.env
+plugin/mcp-server/.env
+
+# Dependencies
+node_modules/
+api/node_modules/
+plugin/mcp-server/node_modules/
+
+# Build outputs
+dist/
+build/
+api/dist/
+plugin/mcp-server/dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Temporary files
+*.tmp
+.cache/
+.temp/
